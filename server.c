@@ -5,23 +5,33 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#define MAX 80
+#include <math.h>
+#define MAX 128
 #define PORT 8080
+#define SIZE 2000
 #define FILENAME "test.txt"
 #define SA struct sockaddr
 
+typedef struct Response {
+    int size;
+    char arr[SIZE];
+} Response;
 struct list {
     char *string;
     struct list *next;
 };
 typedef struct list LIST;
-int z=0;
-char **printFile(int step)
+
+void makeResponse(int step,int sockfd)
 {
     FILE *fp;
-    char line[128];
+    char line[MAX];
     LIST *current, *head;
-    char* str[50];
+    
+    char buff[SIZE];
+    int j=0;
+    char result[SIZE];
+    Response *response= (Response*)malloc(sizeof(Response));
  
     head = current = NULL;
     fp = fopen(FILENAME, "r");
@@ -36,14 +46,17 @@ char **printFile(int step)
         } else {
             current = current->next = node;
         }
+        j++;
     }
     fclose(fp);
-    //test print
-    int j=0;
+    
+    double size = ceil((double)j/(double)step);
+    
+    
+    bzero(result,SIZE);
+    bzero(response,sizeof(Response));
     for(current = head; current ; current=current->next){
-        //printf("%s", current->string);
-        str[j]=current->string;
-        j++;
+        strcat(response->arr,current->string);
         for(int i=0;i<step-1;i++){
                 if (current->next==NULL){
                     break;
@@ -53,58 +66,32 @@ char **printFile(int step)
  
         }
     }
-    z=j;
-    char** str2=malloc(sizeof(char*)*j);
-    for(int count=0;count<j;count++){
-        str2[count]=malloc(MAX +1);
-    }
-    for(int c=0;c<j;c++){
-        str2[c]=str[c];
-        //printf("%s\n",str2[c]);
-    }
-    printf("\n");
-    //need free for each node
-    return str2;
+    printf("To client :\n");
+    printf("%s\n",response->arr);
+    bzero(buff,SIZE);
+    response->size=size;
+
+    memcpy(buff,response,sizeof(buff));
+    write(sockfd,buff,sizeof(buff));
+    
    
 }
  
 // Function designed for chat between client and server.
-void func(int sockfd)
+void chatFunc(int sockfd)
 {
-    char buff[MAX];
-    int n;
     int num=0;
     // infinite loop for chat
     for (;;) {
-       // bzero(buff, MAX);
- 
         // read the message from client and copy it in buffer
         read(sockfd, &num, sizeof(int));
         // print buffer which contains the client contents
-        printf("\tFrom client: %d\t To client : ", num);
-        char** str=printFile(num);
-        for(int i=0;i<z;i++){
-            printf("%s",str[i]);
-        }
-        printf("\n");
-        //bzero(str, j);
-        n = 0;
-        // copy server message in the buffer
-        /*while ((buff[n++] = getchar()) != '\n')
-            ;*/
-            //scanf("%d", &num);
-            num=num+num;
-            printf("%d\t", num);
- 
-        // and send that buffer to client
-        write(sockfd, &z, sizeof(int));
-        write(sockfd,&str,z*sizeof(char*));
- 
-        // if msg contains "Exit" then server exit and chat ended.
+        printf("From client: %d\n", num);
         if (num == 0) {
             printf("Server Exit...\n");
             break;
         }
+        makeResponse(num,sockfd);
     }
 }
  
@@ -156,7 +143,7 @@ int main()
         printf("server acccept the client...\n");
  
     // Function for chatting between client and server
-    func(connfd);
+    chatFunc(connfd);
  
     // After chatting close the socket
     close(sockfd);

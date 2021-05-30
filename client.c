@@ -5,28 +5,35 @@
 #include <sys/socket.h>
 #define MAX 80
 #define PORT 8080
+#define SIZE 2000
 #define SA struct sockaddr
+
+typedef struct Response {
+    int size;
+    char arr[SIZE];
+} Response;
 void func(int sockfd)
 {
-    
     int num=0;
-    int n=0;
+    char buff[SIZE];
     for (;;) {
-        //bzero(num, sizeof(num));
-        printf("Enter step for iteration: ");
-        //n = 0;
-        //while ((buff[n++] = getchar()) != '\n');
+        Response *response= (Response*)malloc(sizeof(Response));
+        printf("Enter step for iteration(0 for exit):");
         scanf("%d", &num);
-        write(sockfd, &num, sizeof(int));
-        //bzero(num, sizeof(num));
-        read(sockfd, &n, sizeof(int));
-        char *buff[n];
-        recv(sockfd,&buff,n*sizeof(char*),0);
-        printf("From Server : %d\n", num);
-        for(int i=0;i<n;i++){
-            printf("%s",buff[i]);
+        if(num<0){
+            printf("Invalid step!!!\n");
+            continue;
         }
-        printf("\n");
+        write(sockfd, &num, sizeof(int));
+        bzero(response,sizeof(Response));
+        bzero(buff,SIZE);
+        read(sockfd,buff,SIZE);
+        memcpy(response,buff,SIZE);
+        printf("From Server : \n");
+        
+        printf("Number of elements : %d\n", response->size);
+        printf("Result :\n%s\n",response->arr);
+        
         if (num == 0) {
             printf("Client Exit...\n");
             break;
